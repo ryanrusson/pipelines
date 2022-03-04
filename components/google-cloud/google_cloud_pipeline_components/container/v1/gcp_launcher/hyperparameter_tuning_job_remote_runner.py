@@ -13,6 +13,8 @@
 # limitations under the License.
 """GCP launcher for hyperparameter tuning jobs based on the AI Platform SDK."""
 
+import logging
+import sys
 from . import job_remote_runner
 from google.api_core import retry
 
@@ -20,15 +22,27 @@ _HYPERPARAMETER_TUNING_JOB_RETRY_DEADLINE_SECONDS = 10.0 * 60.0
 
 
 def create_hyperparameter_tuning_job_with_client(job_client, parent, job_spec):
-  return job_client.create_hyperparameter_tuning_job(
-      parent=parent, hyperparameter_tuning_job=job_spec)
+  create_hyperparameter_tuning_job_fn = None
+  try:
+    create_hyperparameter_tuning_job_fn = job_client.create_hyperparameter_tuning_job(
+        parent=parent, hyperparameter_tuning_job=job_spec)
+  except ConnectionError:
+    logging.error('Request failed with connection error.')
+    sys.exit(13)
+  return create_hyperparameter_tuning_job_fn
 
 
 def get_hyperparameter_tuning_job_with_client(job_client, job_name):
-  return job_client.get_hyperparameter_tuning_job(
+  get_hyperparameter_tuning_job_fn = None
+  try:
+    get_hyperparameter_tuning_job_fn = job_client.get_hyperparameter_tuning_job(
       name=job_name,
       retry=retry.Retry(
           deadline=_HYPERPARAMETER_TUNING_JOB_RETRY_DEADLINE_SECONDS))
+  except ConnectionError:
+    logging.error('Request failed with connection error.')
+    sys.exit(13)
+  return get_hyperparameter_tuning_job_fn
 
 
 def create_hyperparameter_tuning_job(

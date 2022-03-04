@@ -16,6 +16,8 @@
 from . import job_remote_runner
 from .utils import artifact_util, json_util
 import json
+import logging
+import sys
 from google.api_core import retry
 from google.cloud.aiplatform.explain import ExplanationMetadata
 from google_cloud_pipeline_components.types.artifact_types import VertexBatchPredictionJob
@@ -36,14 +38,26 @@ def sanitize_job_spec(job_spec):
 
 def create_batch_prediction_job_with_client(job_client, parent, job_spec):
   job_spec = sanitize_job_spec(job_spec)
-  return job_client.create_batch_prediction_job(
-      parent=parent, batch_prediction_job=job_spec)
+  create_batch_prediction_job_fn = None
+  try:
+    create_batch_prediction_job_fn = job_client.create_batch_prediction_job(
+        parent=parent, batch_prediction_job=job_spec)
+  except ConnectionError:
+    logging.error('Request failed with connection error.')
+    sys.exit(13)
+  return create_batch_prediction_job_fn
 
 
 def get_batch_prediction_job_with_client(job_client, job_name):
-  return job_client.get_batch_prediction_job(
+  get_batch_prediction_job_fn = None
+  try:
+    get_batch_prediction_job_fn = job_client.get_batch_prediction_job(
       name=job_name,
       retry=retry.Retry(deadline=_BATCH_PREDICTION_RETRY_DEADLINE_SECONDS))
+  except ConnectionError:
+    logging.error('Request failed with connection error.')
+    sys.exit(13)
+  return get_batch_prediction_job_fn
 
 
 def insert_artifact_into_payload(executor_input, payload):
